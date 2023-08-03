@@ -225,7 +225,7 @@ class MapRegression(private val ruleset: Ruleset) {
         map.values
             .filter { tile -> tile.improvement in ruinsEquivalents.keys }
             .forEach { tile ->
-                tile.changeImprovement(null)
+                tile.removeImprovement()
             }
     }
 
