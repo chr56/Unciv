@@ -1,0 +1,144 @@
+name: Build and Upload
+
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'r**'
+
+jobs:
+
+  # Job to build the android files on a Ubuntu host
+  build-android:
+    runs-on: ubuntu-latest
+    name: Build Android
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-java@v3
+        with:
+          cache: 'gradle'
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2.12.0
+
+      - name: Build Android debug
+        run: |
+          ./gradlew :android:assembleDebug
+
+      - name: Upload Android artifacts (debug)
+        uses: actions/upload-artifact@v3
+        with:
+          name: Unciv Android (debug)
+          path: |
+            android/build/outputs/apk/debug/*.apk
+          retention-days: 7
+        continue-on-error: true
+
+      - name: Build Android release
+        run: |
+          ./gradlew :android:assembleRelease
+        continue-on-error: true
+
+      - name: Upload Android artifacts (release)
+        uses: actions/upload-artifact@v3
+        with:
+          name: Unciv Android (release)
+          path: |
+            android/build/outputs/apk/release/*.apk
+          retention-days: 14
+        continue-on-error: true
+
+      - name: List files
+        run: |
+          echo 'files to upload'
+          tree android/build/outputs/apk/
+
+  # Job to build the desktop and server JAR files on all available platforms
+  build-desktop:
+    defaults:
+      run:
+        # Ensures that a UNIX-like shell is available (default would be Powershell on Windows)
+        shell: sh
+    name: Build Desktop
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare
+        uses: actions/checkout@v3
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v3
+        with:
+          cache: 'gradle'
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2.12.0
+
+      - name: Build Unciv Desktop Jar artifacts
+        run: |
+            ./gradlew desktop:dist
+            ./gradlew desktop:zipLinuxFilesForJar
+
+      - name: Upload Unciv Desktop Jar artifacts
+        uses: actions/upload-artifact@v3
+        continue-on-error: true
+        with:
+          name: Unciv Jar
+          path: desktop/build/libs/*.jar
+          retention-days: 14
+
+      - name: Build Linux Files
+        run: |
+            ./gradlew desktop:zipLinuxFilesForJar
+
+      - name: Upload Linux Files
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: Unciv LinuxFiles
+          path: |
+                deploy/linuxFilesForJar.zip
+
+      - name: Build Unciv Java server
+        run: ./gradlew server:dist
+
+      - name: Upload Unciv Java server artifacts
+        uses: actions/upload-artifact@v3
+        continue-on-error: true
+        with:
+          name: Unciv Server
+          path: server/build/libs/*.jar
+          retention-days: 7
+
+      - name: List all files
+        run: ls -R .
+
+      - name: Packr Build
+        continue-on-error: true
+        run: |
+            wget -q -O packr-all-4.0.0.jar https://github.com/libgdx/packr/releases/download/4.0.0/packr-all-4.0.0.jar
+            wget -q -O jre-linux-64.tar.gz https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.22%2B7/OpenJDK11U-jre_x64_linux_hotspot_11.0.22_7.tar.gz
+            ./gradlew desktop:packrLinux64
+
+            wget -q -O jdk-windows-64.zip https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.22%2B7/OpenJDK11U-jre_x64_windows_hotspot_11.0.22_7.zip
+            ./gradlew desktop:packrWindows64
+
+      - name: Upload Windows64 packed artifact
+        uses: actions/upload-artifact@v3
+        with:
+            name: Unciv Windows64
+            path: |
+                deploy/Unciv-Windows64.zip
+
+      - name: Upload Linux64 packed artifact
+        uses: actions/upload-artifact@v3
+        with:
+            name: Unciv Linux64
+            path: |
+                deploy/Unciv-Linux64.zip
