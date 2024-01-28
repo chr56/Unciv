@@ -1,14 +1,14 @@
 name: Docker
 
 on:
-  schedule:
-    - cron: '23 14 * * *'
+  # schedule:
+  #   - cron: '23 14 * * *'
   push:
-    branches: [ "master" ]
+    # branches: [ "master" ]
     # Publish semver tags as releases.
     tags: [ '*.*.*' ]
   pull_request:
-    branches: [ "master" ]
+    # branches: [ "master" ]
 
 env:
   # Use docker.io for Docker Hub if empty
